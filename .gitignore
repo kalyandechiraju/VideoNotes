@@ -7,4 +7,4 @@
 /build
 /captures
 .externalNativeBuild
-*/Keys.java
+app/src/main/java/com/kalyan/videonotes/Keys.java
