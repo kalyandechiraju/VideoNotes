@@ -1,15 +1,20 @@
 package com.kalyan.videonotes;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
+import android.support.design.widget.TextInputEditText;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatButton;
 import android.support.v7.widget.Toolbar;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+
+import com.kalyan.videonotes.activity.VideoPlayerActivity;
 
 public class MainActivity extends AppCompatActivity {
+
+    TextInputEditText searchTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -18,12 +23,20 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        searchTextView = (TextInputEditText) findViewById(R.id.yt_search_input);
+        AppCompatButton searchButton = (AppCompatButton) findViewById(R.id.yt_search_button);
+
+        searchButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+            public void onClick(View v) {
+                String searchText = searchTextView.getText().toString();
+                if (!searchText.isEmpty()) {
+                    Intent intent = new Intent(MainActivity.this, VideoPlayerActivity.class);
+                    intent.putExtra(Constants.VIDEO_ID, searchText);
+                    startActivity(intent);
+                } else {
+                    searchTextView.setError("Enter video url/id");
+                }
             }
         });
     }
