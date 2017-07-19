@@ -9,13 +9,23 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
 
 import com.kalyan.videonotes.Constants;
 import com.kalyan.videonotes.R;
+import com.kalyan.videonotes.adapter.NotesAdapter;
+import com.kalyan.videonotes.model.VoiceNote;
+
+import io.realm.Realm;
+import io.realm.RealmResults;
+import io.realm.Sort;
 
 public class MainActivity extends AppCompatActivity {
 
-    TextInputEditText searchTextView;
+    private TextInputEditText searchTextView;
+    private ListView notesListView;
+    private Realm realm;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        notesListView = (ListView) findViewById(R.id.notes_listview);
         searchTextView = (TextInputEditText) findViewById(R.id.yt_search_input);
         AppCompatButton searchButton = (AppCompatButton) findViewById(R.id.yt_search_button);
 
@@ -38,6 +49,29 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     searchTextView.setError("Enter video url/id");
                 }
+            }
+        });
+
+        realm = Realm.getDefaultInstance();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadData();
+    }
+
+    private void loadData() {
+        final RealmResults<VoiceNote> notesList = realm.where(VoiceNote.class).findAllSorted("updatedAt", Sort.DESCENDING);
+        NotesAdapter adapter = new NotesAdapter(this, notesList);
+        notesListView.setAdapter(adapter);
+
+        notesListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Intent intent = new Intent(MainActivity.this, VideoPlayerActivity.class);
+                intent.putExtra(Constants.NOTE_ID, notesList.get(position).getId());
+                startActivity(intent);
             }
         });
     }

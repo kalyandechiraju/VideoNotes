@@ -19,7 +19,6 @@ public class VoiceNote extends RealmObject {
     @Required
     private String ytVideoId;
 
-    @Required
     private long timestamp;
 
     @Required

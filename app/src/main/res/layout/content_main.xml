@@ -37,18 +37,20 @@
             style="@style/Base.Widget.AppCompat.Button.Colored"/>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/saved_notes_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/search_layout"
+        android:text="Saved Notes"
+        android:padding="16dp"
+        style="@style/TextAppearance.AppCompat.Medium"/>
+
     <ListView
         android:id="@+id/notes_listview"
-        android:layout_below="@id/search_layout"
+        android:layout_below="@id/saved_notes_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
-
-    <!--<com.google.android.youtube.player.YouTubePlayerView-->
-        <!--android:id="@+id/youtube_view"-->
-        <!--android:layout_below="@+id/search_layout"-->
-        <!--android:layout_marginTop="16dp"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content"/>-->
 
 
 </RelativeLayout>

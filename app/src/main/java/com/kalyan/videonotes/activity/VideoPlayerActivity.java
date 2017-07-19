@@ -11,6 +11,7 @@ import android.support.v4.app.DialogFragment;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -22,12 +23,15 @@ import com.kalyan.videonotes.Keys;
 import com.kalyan.videonotes.R;
 import com.kalyan.videonotes.dialog.RecorderDialog;
 import com.kalyan.videonotes.model.VoiceNote;
+import com.kalyan.videonotes.service.SpeechService;
 import com.kalyan.videonotes.util.UriUtil;
 
 import java.util.Date;
 import java.util.UUID;
 
 import io.realm.Realm;
+import io.realm.RealmResults;
+import io.realm.Sort;
 
 public class VideoPlayerActivity extends AppCompatActivity implements YouTubePlayer.OnInitializedListener, RecorderDialog.RecorderDialogListener {
 
@@ -37,6 +41,9 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
     private boolean isFullScreen;
     private FloatingActionButton fab;
     private long videoPausedTime;
+
+    private VoiceNote voiceNote;
+    private RealmResults<VoiceNote> allNotesOfThisVideo;
 
     // Requesting permission to RECORD_AUDIO
     private String[] permissions = {Manifest.permission.RECORD_AUDIO};
@@ -77,11 +84,29 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
         fab.setVisibility(View.GONE);
 
         // Read the video ID
-        videoId = getIntent().getStringExtra(Constants.VIDEO_ID);
+        if (getIntent().hasExtra(Constants.VIDEO_ID)) {
+            videoId = getIntent().getStringExtra(Constants.VIDEO_ID);
+        } else if (getIntent().hasExtra(Constants.NOTE_ID)) {
+            Realm realm = Realm.getDefaultInstance();
+            voiceNote = realm.where(VoiceNote.class).equalTo(Constants.VOICE_NOTE_ID, getIntent().getStringExtra(Constants.NOTE_ID)).findFirst();
+            videoId = voiceNote.getYtVideoId();
+            allNotesOfThisVideo = realm.where(VoiceNote.class).equalTo(Constants.VOICE_NOTE_YTVIDEOID, videoId)
+                    .findAllSorted(Constants.VOICE_NOTE_TIMESTAMP, Sort.ASCENDING);
+
+        }
 
         if (videoId == null || videoId.isEmpty()) {
             Toast.makeText(this, "Invalid YouTube Video ID", Toast.LENGTH_SHORT).show();
             this.finish();
+        }
+
+        SpeechService service = new SpeechService();
+        try {
+            String transcript = service.getTranscriptFor(voiceNote.getNotesFilePath());
+            Log.d("TRANSCRIPT", transcript);
+            Toast.makeText(this, transcript, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

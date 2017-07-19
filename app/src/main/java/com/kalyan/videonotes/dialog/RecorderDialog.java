@@ -122,7 +122,7 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
         fileName = getActivity().getFilesDir().getAbsolutePath() + Constants.VOICE_FILE_PREFIX + System.currentTimeMillis()
                 + Constants.VOICE_FILE_EXT;
         mediaRecorder.setOutputFile(fileName);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB);
 
         try {
             mediaRecorder.prepare();
