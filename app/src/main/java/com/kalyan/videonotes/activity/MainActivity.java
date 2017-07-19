@@ -1,4 +1,4 @@
-package com.kalyan.videonotes;
+package com.kalyan.videonotes.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -10,7 +10,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
-import com.kalyan.videonotes.activity.VideoPlayerActivity;
+import com.kalyan.videonotes.Constants;
+import com.kalyan.videonotes.R;
 
 public class MainActivity extends AppCompatActivity {
 

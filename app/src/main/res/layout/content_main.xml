@@ -5,9 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context="com.kalyan.videonotes.MainActivity"
-    tools:showIn="@layout/activity_main"
-    android:layout_margin="8dp">
+    tools:context="com.kalyan.videonotes.activity.MainActivity"
+    tools:showIn="@layout/activity_main">
 
     <ProgressBar
         android:id="@+id/progress_bar"
@@ -16,6 +15,33 @@
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:visibility="gone"/>
+
+    <LinearLayout
+        android:id="@+id/search_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_margin="16dp">
+        <android.support.design.widget.TextInputEditText
+            android:id="@+id/yt_search_input"
+            android:layout_weight="2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:hint="YouTube video url/id" />
+        <android.support.v7.widget.AppCompatButton
+            android:id="@+id/yt_search_button"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="Search"
+            android:textColor="@android:color/white"
+            style="@style/Base.Widget.AppCompat.Button.Colored"/>
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/notes_listview"
+        android:layout_below="@id/search_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
 
     <!--<com.google.android.youtube.player.YouTubePlayerView-->
         <!--android:id="@+id/youtube_view"-->

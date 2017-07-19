@@ -1,8 +1,14 @@
 package com.kalyan.videonotes.activity;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.DialogFragment;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
@@ -14,14 +20,27 @@ import com.google.android.youtube.player.YouTubePlayerSupportFragment;
 import com.kalyan.videonotes.Constants;
 import com.kalyan.videonotes.Keys;
 import com.kalyan.videonotes.R;
+import com.kalyan.videonotes.dialog.RecorderDialog;
+import com.kalyan.videonotes.model.VoiceNote;
 import com.kalyan.videonotes.util.UriUtil;
 
-public class VideoPlayerActivity extends AppCompatActivity implements YouTubePlayer.OnInitializedListener {
+import java.util.Date;
+import java.util.UUID;
 
-    YouTubePlayerSupportFragment youTubePlayerFragment;
-    YouTubePlayer youTubePlayer;
-    String videoId;
-    boolean isFullScreen;
+import io.realm.Realm;
+
+public class VideoPlayerActivity extends AppCompatActivity implements YouTubePlayer.OnInitializedListener, RecorderDialog.RecorderDialogListener {
+
+    private YouTubePlayerSupportFragment youTubePlayerFragment;
+    private YouTubePlayer youTubePlayer;
+    private String videoId;
+    private boolean isFullScreen;
+    private FloatingActionButton fab;
+    private long videoPausedTime;
+
+    // Requesting permission to RECORD_AUDIO
+    private String[] permissions = {Manifest.permission.RECORD_AUDIO};
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,18 +56,25 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
         youTubePlayerFragment = (YouTubePlayerSupportFragment) getSupportFragmentManager().findFragmentById(R.id.youtube_fragment);
         youTubePlayerFragment.initialize(Keys.YT_DEV_KEY, this);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
                 if (youTubePlayer != null) {
+                    // Pause the video
                     youTubePlayer.pause();
-                    Toast.makeText(VideoPlayerActivity.this, "" + youTubePlayer.getCurrentTimeMillis(), Toast.LENGTH_SHORT).show();
+
+                    // Check for recording permission
+                    if (ContextCompat.checkSelfPermission(VideoPlayerActivity.this,
+                            permissions[0]) != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions(VideoPlayerActivity.this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
+                    } else {
+                        showRecordingDialog();
+                    }
                 }
             }
         });
+        fab.setVisibility(View.GONE);
 
         // Read the video ID
         videoId = getIntent().getStringExtra(Constants.VIDEO_ID);
@@ -59,11 +85,13 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
         }
     }
 
+    private void showRecordingDialog() {
+        DialogFragment recorderDialog = new RecorderDialog();
+        recorderDialog.show(getSupportFragmentManager(), "recorder");
+    }
+
     @Override
     public void onInitializationSuccess(YouTubePlayer.Provider provider, YouTubePlayer youTubePlayer, boolean wasRestored) {
-        /*if (!wasRestored) {
-            youTubePlayer.cueVideo("wKJ9KzGQq0w");
-        }*/
         if (!wasRestored) {
             this.youTubePlayer = youTubePlayer;
             this.youTubePlayer.setPlayerStyle(YouTubePlayer.PlayerStyle.DEFAULT);
@@ -74,6 +102,32 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
                 }
             });
             this.youTubePlayer.loadVideo(UriUtil.getVideoTag(videoId));
+            this.youTubePlayer.setPlaybackEventListener(new YouTubePlayer.PlaybackEventListener() {
+                @Override
+                public void onPlaying() {
+                    fab.setVisibility(View.VISIBLE);
+                }
+
+                @Override
+                public void onPaused() {
+                    videoPausedTime = VideoPlayerActivity.this.youTubePlayer.getCurrentTimeMillis();
+                }
+
+                @Override
+                public void onStopped() {
+
+                }
+
+                @Override
+                public void onBuffering(boolean b) {
+                    fab.setVisibility(View.GONE);
+                }
+
+                @Override
+                public void onSeekTo(int i) {
+
+                }
+            });
         }
     }
 
@@ -98,5 +152,42 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
         } else {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case REQUEST_RECORD_AUDIO_PERMISSION:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    showRecordingDialog();
+                } else {
+                    Toast.makeText(this, "Need Audio Recording Permission. Please grant permission in settings.", Toast.LENGTH_SHORT).show();
+                }
+                break;
+        }
+
+    }
+
+    @Override
+    public void onDialogSaveClick(String noteFilePath) {
+        // Save the entry to database
+        Toast.makeText(this, noteFilePath, Toast.LENGTH_LONG).show();
+        Realm realm = Realm.getDefaultInstance();
+
+        // Create the object
+        VoiceNote note = new VoiceNote();
+        note.setId(UUID.randomUUID().toString());
+        note.setNotesFilePath(noteFilePath);
+        note.setNotesText(null);
+        note.setTimestamp(videoPausedTime);
+        note.setYtVideoId(videoId);
+        note.setCreatedAt(new Date());
+        note.setUpdatedAt(new Date());
+
+        // Save it
+        realm.beginTransaction();
+        realm.copyToRealmOrUpdate(note);
+        realm.commitTransaction();
     }
 }
