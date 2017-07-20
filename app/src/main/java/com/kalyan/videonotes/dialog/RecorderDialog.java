@@ -278,7 +278,7 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
             in.close();
             out.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(LOG_TAG, e.getMessage());
         }
     }
 

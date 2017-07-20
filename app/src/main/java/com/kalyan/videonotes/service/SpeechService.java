@@ -28,6 +28,7 @@ import io.realm.RealmConfiguration;
  */
 public class SpeechService extends IntentService implements ISpeechRecognitionServerEvents {
 
+    private static final String LOG_TAG = SpeechService.class.getName();
     //private Realm realm;
     //private VoiceNote voiceNote;
     private String voiceNoteId;
@@ -74,7 +75,7 @@ public class SpeechService extends IntentService implements ISpeechRecognitionSe
             } while (bytesRead > 0);
 
         } catch (Throwable throwable) {
-            throwable.printStackTrace();
+            Log.e(LOG_TAG, throwable.getMessage());
         } finally {
             dataClient.endAudio();
         }

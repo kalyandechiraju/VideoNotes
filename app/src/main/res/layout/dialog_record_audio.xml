@@ -10,7 +10,7 @@
         android:id="@+id/dialog_recording_status_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Start Recording"
+        android:text="@string/start_recording_label"
         android:gravity="center"
         android:padding="16dp"
         style="@style/TextAppearance.AppCompat.Large" />
@@ -29,7 +29,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="00:00"
+        android:text="@string/timer_start_time_label"
         android:padding="16dp"
         style="@style/TextAppearance.AppCompat.Medium"/>
 
@@ -44,7 +44,7 @@
             android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Discard"
+            android:text="@string/discard_button_text"
             style="@style/Base.Widget.AppCompat.Button.Colored"/>
 
         <android.support.v7.widget.AppCompatButton
@@ -52,7 +52,7 @@
             android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Save"
+            android:text="@string/save_button_text"
             style="@style/Base.Widget.AppCompat.Button.Colored"/>
 
     </LinearLayout>

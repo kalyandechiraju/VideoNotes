@@ -35,6 +35,5 @@ dependencies {
     compile 'com.android.support:appcompat-v7:25.3.0'
     compile 'com.android.support:design:25.3.0'
     testCompile 'junit:junit:4.12'
-    compile 'com.squareup.okhttp3:okhttp:3.8.1'
     compile 'com.microsoft.projectoxford:speechrecognition:1.2.2'
 }

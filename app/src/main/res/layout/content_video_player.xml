@@ -18,7 +18,7 @@
         android:id="@+id/text_notes_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Notes for this video"
+        android:text="@string/notes_for_video_label"
         android:layout_margin="16dp"
         style="@style/TextAppearance.AppCompat.Large"
         android:layout_below="@id/youtube_fragment"/>
