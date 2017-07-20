@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import io.realm.RealmResults;
 
 /**
- * Copyright (c) 2017 Codelight Studios
  * Created by kalyandechiraju on 19/07/17.
  */
 

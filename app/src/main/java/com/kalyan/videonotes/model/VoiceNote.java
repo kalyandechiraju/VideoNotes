@@ -7,7 +7,6 @@ import io.realm.annotations.PrimaryKey;
 import io.realm.annotations.Required;
 
 /**
- * Copyright (c) 2017 Codelight Studios
  * Created by kalyandechiraju on 19/07/17.
  */
 
