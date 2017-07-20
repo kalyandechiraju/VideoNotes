@@ -3,16 +3,21 @@ package com.kalyan.videonotes.activity;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.os.AsyncTask;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.google.android.youtube.player.YouTubeInitializationResult;
@@ -21,36 +26,31 @@ import com.google.android.youtube.player.YouTubePlayerSupportFragment;
 import com.kalyan.videonotes.Constants;
 import com.kalyan.videonotes.Keys;
 import com.kalyan.videonotes.R;
+import com.kalyan.videonotes.adapter.NotesAdapter;
 import com.kalyan.videonotes.dialog.RecorderDialog;
 import com.kalyan.videonotes.model.VoiceNote;
 import com.kalyan.videonotes.util.UriUtil;
-import com.microsoft.cognitiveservices.speechrecognition.DataRecognitionClient;
-import com.microsoft.cognitiveservices.speechrecognition.ISpeechRecognitionServerEvents;
-import com.microsoft.cognitiveservices.speechrecognition.RecognitionResult;
-import com.microsoft.cognitiveservices.speechrecognition.SpeechAudioFormat;
-import com.microsoft.cognitiveservices.speechrecognition.SpeechRecognitionMode;
-import com.microsoft.cognitiveservices.speechrecognition.SpeechRecognitionServiceFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.IOException;
 import java.util.Date;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
 import io.realm.Sort;
 
 public class VideoPlayerActivity extends AppCompatActivity implements YouTubePlayer.OnInitializedListener,
-        RecorderDialog.RecorderDialogListener, ISpeechRecognitionServerEvents {
+        RecorderDialog.RecorderDialogListener {
 
+    private static final String LOG_TAG = VideoPlayerActivity.class.getName();
     private YouTubePlayerSupportFragment youTubePlayerFragment;
     private YouTubePlayer youTubePlayer;
     private String videoId;
     private boolean isFullScreen;
     private FloatingActionButton fab;
     private long videoPausedTime;
+    private ListView textNotesListView;
+    private boolean isNotesPlayed;
 
     private VoiceNote voiceNote;
     private RealmResults<VoiceNote> allNotesOfThisVideo;
@@ -92,28 +92,47 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
             }
         });
         fab.setVisibility(View.GONE);
+        textNotesListView = (ListView) findViewById(R.id.text_notes_listview);
 
-        // Read the video ID
+        Realm realm = Realm.getDefaultInstance();
+
         if (getIntent().hasExtra(Constants.VIDEO_ID)) {
             videoId = getIntent().getStringExtra(Constants.VIDEO_ID);
+            allNotesOfThisVideo = realm.where(VoiceNote.class).equalTo(Constants.VOICE_NOTE_YTVIDEOID, videoId)
+                    .isNotNull(Constants.VOICE_NOTE_NOTES_TEXT)
+                    .findAllSorted(Constants.VOICE_NOTE_TIMESTAMP, Sort.ASCENDING);
         } else if (getIntent().hasExtra(Constants.NOTE_ID)) {
-            Realm realm = Realm.getDefaultInstance();
             voiceNote = realm.where(VoiceNote.class).equalTo(Constants.VOICE_NOTE_ID, getIntent().getStringExtra(Constants.NOTE_ID)).findFirst();
             videoId = voiceNote.getYtVideoId();
             allNotesOfThisVideo = realm.where(VoiceNote.class).equalTo(Constants.VOICE_NOTE_YTVIDEOID, videoId)
+                    .isNotNull(Constants.VOICE_NOTE_NOTES_TEXT)
                     .findAllSorted(Constants.VOICE_NOTE_TIMESTAMP, Sort.ASCENDING);
-
         }
 
         if (videoId == null || videoId.isEmpty()) {
             Toast.makeText(this, "Invalid YouTube Video ID", Toast.LENGTH_SHORT).show();
             this.finish();
         }
+    }
 
-        DataRecognitionClient client = SpeechRecognitionServiceFactory.createDataClient(this, SpeechRecognitionMode.LongDictation, "en-US",
-                this, "28f876f2cf354c0ba723756f1e7391d2");
-        client.setAuthenticationUri("");
-        sendAudioHelper(voiceNote.getNotesFilePath(), client);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        displayNotes();
+    }
+
+    private void displayNotes() {
+        NotesAdapter adapter = new NotesAdapter(this, allNotesOfThisVideo, Constants.NOTES_TEXT_MODE);
+        textNotesListView.setAdapter(adapter);
+
+        textNotesListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                if (youTubePlayer != null) {
+                    youTubePlayer.seekToMillis((int) allNotesOfThisVideo.get(position).getTimestamp());
+                }
+            }
+        });
     }
 
     private void showRecordingDialog() {
@@ -133,6 +152,66 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
                 }
             });
             this.youTubePlayer.loadVideo(UriUtil.getVideoTag(videoId));
+            this.youTubePlayer.setPlayerStateChangeListener(new YouTubePlayer.PlayerStateChangeListener() {
+                @Override
+                public void onLoading() {
+
+                }
+
+                @Override
+                public void onLoaded(String s) {
+                    if (voiceNote != null && !isNotesPlayed) {
+                        isNotesPlayed = true;
+                        VideoPlayerActivity.this.youTubePlayer.pause();
+                        VideoPlayerActivity.this.youTubePlayer.seekToMillis((int) voiceNote.getTimestamp());
+                        // Play the audio
+                        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(VideoPlayerActivity.this);
+                        alertDialogBuilder.setMessage("Playing Notes");
+                        alertDialogBuilder.setCancelable(false);
+                        final AlertDialog alertDialog = alertDialogBuilder.create();
+                        alertDialog.setCanceledOnTouchOutside(false);
+                        alertDialog.show();
+                        final MediaPlayer mediaPlayer = new MediaPlayer();
+                        try {
+                            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                            mediaPlayer.setDataSource(voiceNote.getNotesFilePath());
+                            mediaPlayer.prepare();
+                            mediaPlayer.start();
+                            mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                @Override
+                                public void onCompletion(MediaPlayer mp) {
+                                    mediaPlayer.release();
+                                    alertDialog.dismiss();
+                                    VideoPlayerActivity.this.youTubePlayer.play();
+                                }
+                            });
+                        } catch (IOException e) {
+                            Log.e(LOG_TAG, e.getMessage());
+                            Toast.makeText(VideoPlayerActivity.this, "Unable to play notes", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+
+                @Override
+                public void onAdStarted() {
+
+                }
+
+                @Override
+                public void onVideoStarted() {
+
+                }
+
+                @Override
+                public void onVideoEnded() {
+
+                }
+
+                @Override
+                public void onError(YouTubePlayer.ErrorReason errorReason) {
+
+                }
+            });
             this.youTubePlayer.setPlaybackEventListener(new YouTubePlayer.PlaybackEventListener() {
                 @Override
                 public void onPlaying() {
@@ -203,7 +282,6 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
     @Override
     public void onDialogSaveClick(String noteFilePath) {
         // Save the entry to database
-        Toast.makeText(this, noteFilePath, Toast.LENGTH_LONG).show();
         Realm realm = Realm.getDefaultInstance();
 
         // Create the object
@@ -212,7 +290,7 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
         note.setNotesFilePath(noteFilePath);
         note.setNotesText(null);
         note.setTimestamp(videoPausedTime);
-        note.setYtVideoId(videoId);
+        note.setYtVideoId(UriUtil.getVideoTag(videoId));
         note.setCreatedAt(new Date());
         note.setUpdatedAt(new Date());
 
@@ -220,101 +298,5 @@ public class VideoPlayerActivity extends AppCompatActivity implements YouTubePla
         realm.beginTransaction();
         realm.copyToRealmOrUpdate(note);
         realm.commitTransaction();
-    }
-
-
-    private void sendAudioHelper(String filename, DataRecognitionClient client) {
-        RecognitionTask doDataReco = new RecognitionTask(client, SpeechRecognitionMode.LongDictation, filename);
-        try {
-            doDataReco.execute().get(200, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            doDataReco.cancel(true);
-        }
-    }
-
-    @Override
-    public void onPartialResponseReceived(String s) {
-
-    }
-
-    @Override
-    public void onFinalResponseReceived(RecognitionResult recognitionResult) {
-        String transcript = "";
-        for (int i = 0; i < recognitionResult.Results.length; i++) {
-            transcript += recognitionResult.Results[i].DisplayText;
-        }
-        if (!transcript.isEmpty()) {
-            /*Realm realm = Realm.getDefaultInstance();
-            VoiceNote note = realm.where(VoiceNote.class).equalTo(Constants.VOICE_NOTE_ID, voiceNote.getId()).findFirst();
-            note.setNotesText(transcript);
-            note.setUpdatedAt(new Date());
-            realm.beginTransaction();
-            realm.copyToRealmOrUpdate(note);
-            realm.commitTransaction();*/
-            Toast.makeText(this, "Transcript: " + transcript, Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, "Empty Transcript", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    public void onIntentReceived(String s) {
-
-    }
-
-    @Override
-    public void onError(int i, String s) {
-
-    }
-
-    @Override
-    public void onAudioEvent(boolean b) {
-
-    }
-
-    private class RecognitionTask extends AsyncTask<Void, Void, Void> {
-        DataRecognitionClient dataClient;
-        SpeechRecognitionMode recoMode;
-        String filename;
-
-        RecognitionTask(DataRecognitionClient dataClient, SpeechRecognitionMode recoMode, String filename) {
-            this.dataClient = dataClient;
-            this.recoMode = recoMode;
-            this.filename = filename;
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            try {
-                // Note for wave files, we can just send data from the file right to the server.
-                // In the case you are not an audio file in wave format, and instead you have just
-                // raw data (for example audio coming over bluetooth), then before sending up any
-                // audio data, you must first send up an SpeechAudioFormat descriptor to describe
-                // the layout and format of your raw audio data via DataRecognitionClient's sendAudioFormat() method.
-                // String filename = recoMode == SpeechRecognitionMode.ShortPhrase ? "whatstheweatherlike.wav" : "batman.wav";
-                dataClient.sendAudioFormat(SpeechAudioFormat.createSiren7Format(16000));
-                File file = new File(filename);
-                InputStream fileStream = new FileInputStream(file); //getAssets().open("whatstheweatherlike.wav");
-                int bytesRead = 0;
-                byte[] buffer = new byte[1024];
-
-                do {
-                    // Get  Audio data to send into byte buffer.
-                    bytesRead = fileStream.read(buffer);
-
-                    if (bytesRead > -1) {
-                        // Send of audio data to service.
-                        dataClient.sendAudio(buffer, bytesRead);
-                    }
-                } while (bytesRead > 0);
-
-            } catch (Throwable throwable) {
-                throwable.printStackTrace();
-            } finally {
-                dataClient.endAudio();
-            }
-
-            return null;
-        }
     }
 }

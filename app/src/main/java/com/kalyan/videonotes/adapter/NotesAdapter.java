@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
 
+import com.kalyan.videonotes.Constants;
 import com.kalyan.videonotes.model.VoiceNote;
 
 import java.util.Locale;
@@ -24,11 +25,13 @@ public class NotesAdapter extends BaseAdapter {
     private Context context;
     private LayoutInflater inflater;
     private RealmResults<VoiceNote> data;
+    private String mode;
 
-    public NotesAdapter(Context context, RealmResults<VoiceNote> data) {
+    public NotesAdapter(Context context, RealmResults<VoiceNote> data, String mode) {
         this.context = context;
         this.data = data;
         this.inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        this.mode = mode;
     }
 
     @Override
@@ -68,7 +71,13 @@ public class NotesAdapter extends BaseAdapter {
             timeString = String.format(Locale.ENGLISH, "%02d:%02d", minutes, seconds);
         }
 
-        String rowData = "" + (position + 1) + ". " + note.getYtVideoId() + " @ " + timeString;
+        String rowData = "";
+        if (mode.equals(Constants.NOTES_AUDIO_MODE)) {
+            rowData = "" + (position + 1) + ". " + note.getYtVideoId() + " @ " + timeString;
+        } else if (mode.equals(Constants.NOTES_TEXT_MODE)) {
+            rowData = timeString + " " + note.getNotesText();
+        }
+
         textView.setText(rowData);
         return view;
     }

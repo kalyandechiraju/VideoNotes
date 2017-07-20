@@ -2,6 +2,9 @@ package com.kalyan.videonotes.dialog;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -18,8 +21,12 @@ import android.widget.Toast;
 
 import com.kalyan.videonotes.Constants;
 import com.kalyan.videonotes.R;
+import com.kalyan.videonotes.util.WaveFileConverter;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Timer;
@@ -33,14 +40,22 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
 
     private static final String LOG_TAG = RecorderDialog.class.getName();
     private boolean isRecording;
-    private MediaRecorder mediaRecorder;
     private String fileName;
+    private String tempFileName;
     private FloatingActionButton recordButton;
     private LinearLayout postRecordingLayout;
     private TextView recordingStatusLabel, timerLabel;
     private RecorderDialogListener listener;
     private long startTime;
     private Timer stopwatchTimer;
+
+    private static final int RECORDER_SAMPLERATE = 44100;
+    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_STEREO;
+    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+
+    private AudioRecord recorder = null;
+    private int bufferSize = 0;
+    private Thread recordingThread = null;
 
     @NonNull
     @Override
@@ -66,6 +81,21 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
 
         recordingStatusLabel = (TextView) dialogView.findViewById(R.id.dialog_recording_status_label);
         timerLabel = (TextView) dialogView.findViewById(R.id.dialog_timer_label);
+
+        bufferSize = AudioRecord.getMinBufferSize(8000,
+                AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.ENCODING_PCM_16BIT);
+
+        builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                if (recorder != null) {
+                    recorder.stop();
+                    recorder.release();
+                    recorder = null;
+                }
+            }
+        });
 
         return builder.create();
     }
@@ -107,29 +137,39 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
             stopwatchTimer.cancel();
             stopwatchTimer.purge();
         }
-        if (mediaRecorder != null) {
-            mediaRecorder.stop();
-            mediaRecorder.release();
-            mediaRecorder = null;
+
+        if (recorder != null) {
+            isRecording = false;
+            if (recorder.getState() == AudioRecord.STATE_INITIALIZED) {
+                recorder.stop();
+                recorder.release();
+                recorder = null;
+                recordingThread = null;
+            }
+            fileName = getActivity().getFilesDir().getAbsolutePath() + Constants.VOICE_FILE_PREFIX + System.currentTimeMillis()
+                    + Constants.VOICE_FILE_EXT;
+            copyWaveFile(tempFileName, fileName);
+            File file = new File(tempFileName);
+            file.delete();
         }
     }
 
     private void startRecording() {
         isRecording = true;
-        mediaRecorder = new MediaRecorder();
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        fileName = getActivity().getExternalFilesDir(null).getAbsolutePath() + Constants.VOICE_FILE_PREFIX + System.currentTimeMillis()
-                + Constants.VOICE_FILE_EXT;
-        mediaRecorder.setOutputFile(fileName);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                RECORDER_SAMPLERATE, RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING, bufferSize);
+        if (recorder.getState() == AudioRecord.STATE_INITIALIZED) {
+            recorder.startRecording();
+            recordingThread = new Thread(new Runnable() {
 
-        try {
-            mediaRecorder.prepare();
-        } catch (IOException e) {
-            Log.e(LOG_TAG, "prepare() failed");
+                @Override
+                public void run() {
+                    writeAudioDataToFile();
+                }
+            }, "AudioRecorder Thread");
+
+            recordingThread.start();
         }
-        mediaRecorder.start();
         startTimer();
     }
 
@@ -156,7 +196,6 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
         }, 0, 10);
     }
 
-    // Override the Fragment.onAttach() method to instantiate the NoticeDialogListener
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
@@ -171,4 +210,77 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
     public interface RecorderDialogListener {
         void onDialogSaveClick(String noteFilePath);
     }
+
+
+    // Helpers to write raw audio to .wav file
+
+    private void writeAudioDataToFile() {
+        byte data[] = new byte[bufferSize];
+        tempFileName = getActivity().getFilesDir().getAbsolutePath() + Constants.VOICE_FILE_PREFIX + System.currentTimeMillis()
+                + "_temp.raw";
+        FileOutputStream os = null;
+
+        try {
+            os = new FileOutputStream(tempFileName);
+        } catch (FileNotFoundException e) {
+            Log.e(LOG_TAG, e.getMessage());
+        }
+
+        int read = 0;
+
+        if (os != null) {
+            while (isRecording) {
+                read = recorder.read(data, 0, bufferSize);
+
+                if (read != AudioRecord.ERROR_INVALID_OPERATION) {
+                    try {
+                        os.write(data);
+                    } catch (IOException e) {
+                        Log.e(LOG_TAG, e.getMessage());
+                    }
+                }
+            }
+
+            try {
+                os.close();
+            } catch (IOException e) {
+                Log.e(LOG_TAG, e.getMessage());
+            }
+        }
+    }
+
+    private void copyWaveFile(String inFilename, String outFilename) {
+        FileInputStream in = null;
+        FileOutputStream out = null;
+        long totalAudioLen = 0;
+        long totalDataLen = totalAudioLen + 36;
+        long longSampleRate = RECORDER_SAMPLERATE;
+        int channels = 2;
+        long byteRate = 16 * RECORDER_SAMPLERATE * channels / 8;
+
+        byte[] data = new byte[bufferSize];
+
+        try {
+            in = new FileInputStream(inFilename);
+            out = new FileOutputStream(outFilename);
+            totalAudioLen = in.getChannel().size();
+            totalDataLen = totalAudioLen + 36;
+
+            Log.d(LOG_TAG, "File size: " + totalDataLen);
+
+            WaveFileConverter.writeWaveFileHeader(out, totalAudioLen, totalDataLen,
+                    longSampleRate, channels, byteRate);
+
+            while (in.read(data) != -1) {
+                out.write(data);
+            }
+
+            in.close();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
 }

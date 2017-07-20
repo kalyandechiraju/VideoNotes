@@ -16,6 +16,8 @@ import com.kalyan.videonotes.Constants;
 import com.kalyan.videonotes.R;
 import com.kalyan.videonotes.adapter.NotesAdapter;
 import com.kalyan.videonotes.model.VoiceNote;
+import com.kalyan.videonotes.service.SpeechService;
+import com.kalyan.videonotes.util.ConnectionUtil;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -59,11 +61,25 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadData();
+
+        if (ConnectionUtil.isConnected(this)) {
+            RealmResults<VoiceNote> notes = realm.where(VoiceNote.class).isNull(Constants.VOICE_NOTE_NOTES_TEXT).findAll();
+            for (VoiceNote note: notes) {
+                Intent intent = new Intent(this, SpeechService.class);
+                intent.putExtra(Constants.NOTE_ID, note.getId());
+                startService(intent);
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 
     private void loadData() {
         final RealmResults<VoiceNote> notesList = realm.where(VoiceNote.class).findAllSorted("updatedAt", Sort.DESCENDING);
-        NotesAdapter adapter = new NotesAdapter(this, notesList);
+        NotesAdapter adapter = new NotesAdapter(this, notesList, Constants.NOTES_AUDIO_MODE);
         notesListView.setAdapter(adapter);
 
         notesListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
