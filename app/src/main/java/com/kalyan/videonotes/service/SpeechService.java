@@ -1,25 +1,16 @@
 package com.kalyan.videonotes.service;
 
-import com.google.cloud.speech.spi.v1.SpeechClient;
-import com.google.cloud.speech.v1.RecognitionAudio;
-import com.google.cloud.speech.v1.RecognitionConfig;
-import com.google.cloud.speech.v1.RecognizeResponse;
-import com.google.cloud.speech.v1.SpeechRecognitionAlternative;
-import com.google.cloud.speech.v1.SpeechRecognitionResult;
-import com.google.protobuf.ByteString;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Created by kalyandechiraju on 20/07/17.
  */
 
 public class SpeechService {
-    public String getTranscriptFor(String fileName) throws Exception {
+    /*public String getTranscriptFor(String fileName) throws Exception {
         SpeechClient speech = SpeechClient.create();
 
         File file = new File(fileName);
@@ -48,7 +39,11 @@ public class SpeechService {
         }
         speech.close();
         return transcript;
-    }
+    }*/
+
+
+
+
 
     private byte[] readBytes(File file) throws IOException {
         int size = (int) file.length();

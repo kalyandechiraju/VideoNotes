@@ -118,11 +118,11 @@ public class RecorderDialog extends DialogFragment implements View.OnClickListen
         isRecording = true;
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        fileName = getActivity().getFilesDir().getAbsolutePath() + Constants.VOICE_FILE_PREFIX + System.currentTimeMillis()
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        fileName = getActivity().getExternalFilesDir(null).getAbsolutePath() + Constants.VOICE_FILE_PREFIX + System.currentTimeMillis()
                 + Constants.VOICE_FILE_EXT;
         mediaRecorder.setOutputFile(fileName);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
 
         try {
             mediaRecorder.prepare();

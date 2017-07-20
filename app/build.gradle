@@ -11,6 +11,10 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters "armeabi-v7a", "x86", "armeabi", "mips"
+        }
     }
     buildTypes {
         release {
@@ -31,5 +35,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:25.3.0'
     compile 'com.android.support:design:25.3.0'
     testCompile 'junit:junit:4.12'
-    compile 'com.google.cloud:google-cloud-speech:0.17.1-alpha'
+    compile 'com.squareup.okhttp3:okhttp:3.8.1'
+    compile 'com.microsoft.projectoxford:speechrecognition:1.2.2'
 }
